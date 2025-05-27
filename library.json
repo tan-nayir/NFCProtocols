@@ -1,0 +1,31 @@
+{
+    "name": "NFCProtocols-CPP",
+    "version": "1.0.0",
+    "description": "C++ library for NFC communication protocols",
+    "keywords": "communication, nfc, apple, vas, reader",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/tan-nayir/NFCProtocols-CPP"
+    },
+    "authors": [
+        {
+            "name": "Tan Nayir",
+            "maintainer": true
+        },
+        {
+            "name": "Proxmark3 Contributors",
+            "url": "https://github.com/RfidResearchGroup/proxmark3"
+        }
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/tan-nayir/NFCProtocols-CPP",
+    "dependencies": {},
+    "frameworks": "*",
+    "platforms": "*",
+    "build": {
+        "includeDir": "include",
+        "flags": [
+            "-I include/pm3"
+        ]
+    }
+}

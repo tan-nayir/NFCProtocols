@@ -1,0 +1,3 @@
+[submodule "src/mbedtls-ecp-compression"]
+	path = src/mbedtls-ecp-compression
+	url = https://github.com/mwarning/mbedtls-ecp-compression.git
