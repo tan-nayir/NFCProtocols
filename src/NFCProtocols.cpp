@@ -1,8 +1,9 @@
 #include <mbedtls/ecp.h>
 #include <cstring>
-#include "NFCProtocols.hpp"
+
+#include "NFCProtocols/NFCProtocols.hpp"
 #include "pm3_compat.h"
-#include "vas.h"
+#include "pm3/vas.h"
 
 using namespace NFCProtocols;
 APDUTransceiveCallback g_apduTransceiveCallback = nullptr;

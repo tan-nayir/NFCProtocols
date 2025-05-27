@@ -1,60 +1,54 @@
 #include <mbedtls/ecp.h>
 #include <cstring>
-#include "NFCProtocols.hpp"
-#include "AppleVASReader.hpp"
+
+#include "NFCProtocols/Utils.hpp"
+#include "NFCProtocols/NFCProtocols.hpp"
+#include "NFCProtocols/AppleVASReader.hpp"
 #include "pm3_compat.h"
-#include "vas.h"
+#include "pm3/vas.h"
 
 using namespace NFCProtocols;
+using namespace AppleVAS;
+using namespace Utils;
+
 extern APDUTransceiveCallback g_apduTransceiveCallback;
 extern LogFunction g_logFunc;
 
-int AppleVAS::ReadPass(const char *pid, const char *url,
-                       std::span<const uint8_t> privateKey,
-                       std::span<uint8_t> outBuffer, size_t *numBytesRead)
+std::expected<std::vector<std::byte>, ErrorCode> NFCProtocols::AppleVAS::ReadPass(const char *pid, const char *url, std::span<const std::byte> privateKey)
 {
-    int pidlen = pid != nullptr ? strlen(pid) : 0;
-    int urllen = url != nullptr ? strlen(url) : 0;
-
-    if (outBuffer.size_bytes() < 64)
-    {
-        PrintAndLogEx(FAILED, "Output buffer too small for message");
-        return PM3_EINVARG;
-    }
-
-    mbedtls_ecp_keypair privKey;
-    mbedtls_ecp_keypair_init(&privKey);
-    if (LoadReaderPrivateKey(privateKey.data(), privateKey.size_bytes(),
-                             &privKey) != PM3_SUCCESS)
-    {
-        mbedtls_ecp_keypair_free(&privKey);
-        return PM3_ESOFT;
-    }
-
-    PrintAndLogEx(INFO, "Requesting pass type id... %s", pid);
-
-    uint8_t pidhash[32] = {0};
-    sha256hash((uint8_t *)pid, pidlen, pidhash);
-
+    std::vector<std::byte> outBuffer(64);
+    size_t numBytesRead = 0;
     size_t clen = 0;
     uint8_t cryptogram[120] = {0};
     uint32_t timestamp = 0;
 
-    *numBytesRead = 0;
-    memset(outBuffer.data(), 0, outBuffer.size_bytes());
+    int pidlen = pid != nullptr ? strlen(pid) : 0;
+    int urllen = url != nullptr ? strlen(url) : 0;
 
-    int res = VASReader((pidlen > 0) ? pidhash : NULL, url, urllen, cryptogram,
-                        &clen, true);
-    if (res == PM3_SUCCESS)
+    auto privKey = raii_mbedtls_ecp_keypair{new mbedtls_ecp_keypair};
+    mbedtls_ecp_keypair_init(privKey.get());
+    if (LoadReaderPrivateKey(reinterpret_cast<const uint8_t *>(privateKey.data()), privateKey.size_bytes(),
+                             privKey.get()) != PM3_SUCCESS)
+        return std::unexpected(ErrorCode::INVALID_KEY);
+
+    auto pidhash = Utils::SHA256Hash(std::as_bytes(std::span<const char>(pid, pidlen)));
+
+    PrintAndLogEx(INFO, "Requesting pass id... %s", pid);
+    if (VASReader((pidlen > 0) ? reinterpret_cast<uint8_t *>(pidhash.data()) : NULL, url, urllen, cryptogram,
+                  &clen, true) != PM3_SUCCESS)
     {
-        res = DecryptVASCryptogram(pidhash, cryptogram, clen, &privKey,
-                                   outBuffer.data(), numBytesRead, &timestamp);
-        if (res == PM3_SUCCESS)
-        {
-            PrintAndLogEx(SUCCESS, "Timestamp... %d (secs since Jan 1, 2001)", timestamp);
-        }
+        PrintAndLogEx(FAILED, "Failed to read pass");
+        return std::unexpected(ErrorCode::READ_ERROR);
     }
 
-    mbedtls_ecp_keypair_free(&privKey);
-    return res;
+    if (DecryptVASCryptogram(reinterpret_cast<uint8_t *>(pidhash.data()), cryptogram, clen, privKey.get(),
+                             reinterpret_cast<uint8_t *>(outBuffer.data()), &numBytesRead, &timestamp) != PM3_SUCCESS)
+    {
+        PrintAndLogEx(FAILED, "Failed to decrypt pass");
+        return std::unexpected(ErrorCode::DECRYPTION_ERROR);
+    }
+
+    PrintAndLogEx(SUCCESS, "Timestamp... %d (secs since Jan 1, 2001)", timestamp);
+    outBuffer.resize(numBytesRead);
+    return outBuffer;
 }

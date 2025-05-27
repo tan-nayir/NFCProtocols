@@ -1,10 +1,13 @@
-#include "NFCProtocols.hpp"
-#include "pm3_compat.h"
 #include <cmath>
 #include <cstdarg>
 #include <cstdlib>
 #include <cstring>
+#include <algorithm>
 #include <mbedtls/sha256.h>
+
+#include "pm3_compat.h"
+#include "NFCProtocols/NFCProtocols.hpp"
+#include "NFCProtocols/Utils.hpp"
 
 using namespace NFCProtocols;
 extern APDUTransceiveCallback g_apduTransceiveCallback;
@@ -23,15 +26,9 @@ extern "C" int Iso7816Select(Iso7816CommandChannel channel, bool activate_field,
                              uint8_t *result, size_t max_result_len,
                              size_t *result_len, uint16_t *sw)
 {
-    uint8_t apdu[APDU_RES_LEN]; // CLA INS P1 P2 Lc [AID]
-    apdu[0] = 0x00;             // CLA
-    apdu[1] = 0xA4;             // INS: SELECT
-    apdu[2] = 0x04;             // P1: Select by name
-    apdu[3] = 0x00;             // P2: First occurrence
-    apdu[4] = aid_len;          // Lc: Length of AID
-    memcpy(&apdu[5], aid, aid_len);
-
-    auto ret = ExchangeAPDU14a(apdu, 5 + aid_len, activate_field, leave_field_on,
+    auto apdu = Utils::BuildAPDUFrame(0x00, 0xA4, 0x04, 0x00,
+                                      std::as_bytes(std::span<const uint8_t>(aid, aid_len)));
+    auto ret = ExchangeAPDU14a(reinterpret_cast<const uint8_t *>(apdu.data()), apdu.size(), activate_field, leave_field_on,
                                result, max_result_len, result_len);
 
     if (*result_len < 2)
@@ -50,25 +47,33 @@ extern "C" int ExchangeAPDU14a(const uint8_t *datain, size_t datainlen,
                                uint8_t *dataout, size_t maxdataoutlen,
                                size_t *dataoutlen)
 {
-    g_apduTransceiveCallback(std::span<const uint8_t>(datain, datainlen),
-                             std::span<uint8_t>(dataout, maxdataoutlen),
-                             dataoutlen);
+    auto res = g_apduTransceiveCallback(std::span<const uint8_t>(datain, datainlen));
+    if (!res)
+    {
+        pm3_printf("ExchangeAPDU14a: APDU transceive callback failed\n");
+        return PM3_ECARDEXCHANGE;
+    }
+
+    if (res->size() > maxdataoutlen)
+    {
+        pm3_printf("ExchangeAPDU14a: Response too long (%zu bytes, max %zu bytes)\n",
+                   res->size(), maxdataoutlen);
+        return PM3_EINVARG;
+    }
+
+    std::copy(std::begin(*res), std::end(*res), reinterpret_cast<std::byte *>(dataout));
+    *dataoutlen = res->size();
+
     return PM3_SUCCESS;
 }
 
 extern "C" int sha256hash(uint8_t *input, int length, uint8_t *hash)
 {
     if (!hash || !input)
-    {
         return 1;
-    }
 
-    mbedtls_sha256_context sctx;
-    mbedtls_sha256_init(&sctx);
-    mbedtls_sha256_starts(&sctx, 0); // SHA-256, not 224
-    mbedtls_sha256_update(&sctx, input, length);
-    mbedtls_sha256_finish(&sctx, hash);
-    mbedtls_sha256_free(&sctx);
+    auto res = Utils::SHA256Hash(std::as_bytes(std::span<const uint8_t>(input, length)));
+    std::copy(std::begin(res), std::end(res), reinterpret_cast<std::byte *>(hash));
 
     return PM3_SUCCESS;
 }

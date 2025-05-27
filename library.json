@@ -25,7 +25,8 @@
     "build": {
         "includeDir": "include",
         "flags": [
-            "-I include/pm3"
+            "-Iinclude_priv",
+            "-std=c++23"
         ]
     }
 }
