@@ -1,11 +1,12 @@
 {
-    "name": "NFCProtocols-CPP",
+    "$schema": "https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/schema/library.json",
+    "name": "NFCProtocols",
     "version": "1.0.0",
     "description": "C++ library for NFC communication protocols",
     "keywords": "communication, nfc, apple, vas, reader",
     "repository": {
         "type": "git",
-        "url": "https://github.com/tan-nayir/NFCProtocols-CPP"
+        "url": "https://github.com/tan-nayir/NFCProtocols"
     },
     "authors": [
         {
@@ -18,12 +19,15 @@
         }
     ],
     "license": "MIT",
-    "homepage": "https://github.com/tan-nayir/NFCProtocols-CPP",
     "dependencies": {},
     "frameworks": "*",
     "platforms": "*",
     "build": {
-        "includeDir": "include",
+        "srcFilter": [
+            "+<*>",
+            "-<mbedtls-ecp-compression/*>",
+            "+<mbedtls-ecp-compression/ecc_point_compression.c>"
+        ],
         "flags": [
             "-Iinclude_priv",
             "-std=c++23"
