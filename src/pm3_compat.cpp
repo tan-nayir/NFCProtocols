@@ -47,7 +47,7 @@ extern "C" int ExchangeAPDU14a(const uint8_t *datain, size_t datainlen,
                                uint8_t *dataout, size_t maxdataoutlen,
                                size_t *dataoutlen)
 {
-    auto res = g_apduTransceiveCallback(std::span<const uint8_t>(datain, datainlen));
+    auto res = g_apduTransceiveCallback(std::as_bytes(std::span<const uint8_t>(datain, datainlen)));
     if (!res)
     {
         pm3_printf("ExchangeAPDU14a: APDU transceive callback failed\n");
