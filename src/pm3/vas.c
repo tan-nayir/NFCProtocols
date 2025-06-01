@@ -23,8 +23,8 @@
 #include "mbedtls/ecp.h"
 #include "mbedtls/bignum.h"
 #include "mbedtls/ecdh.h"
-#include "mbedtls-ecp-compression/ecc_point_compression.h"
 #include "mbedtls/gcm.h"
+#include "ecc_point_compression.h"
 
 static int dummy_rng(void *ctx, unsigned char *buf, size_t len) {
     (void)ctx;

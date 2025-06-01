@@ -23,12 +23,13 @@
     "frameworks": "*",
     "platforms": "*",
     "build": {
+        "srcDir": ".",
         "srcFilter": [
-            "+<*>",
-            "-<mbedtls-ecp-compression/*>",
-            "+<mbedtls-ecp-compression/ecc_point_compression.c>"
+            "+<src/**>",
+            "+<external/mbedtls-ecp-compression/ecc_point_compression.c>"
         ],
         "flags": [
+            "-Iexternal/mbedtls-ecp-compression",
             "-Iinclude_priv",
             "-std=c++23"
         ]
